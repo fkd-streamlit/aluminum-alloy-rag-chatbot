@@ -11,6 +11,9 @@ from pathlib import Path
 # GitHub に置くデフォルトデータのパス
 DEFAULT_DATA_PATH = Path(__file__).parent / "data" / "temp_data.xlsx"
 
+st.write("DEBUG: デフォルトデータパス = ", DEFAULT_DATA_PATH)
+st.write("DEBUG: 存在しますか？ → ", DEFAULT_DATA_PATH.exists())
+
 # ページ設定
 st.set_page_config(
     page_title="アルミニウム合金 RAG ChatBot",
@@ -507,5 +510,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
