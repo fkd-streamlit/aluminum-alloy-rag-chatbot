@@ -135,86 +135,51 @@ class AluminumAlloyRAG:
     # --------------------------------------------------------
     # 検索機能（省略せず全て残す）
     # --------------------------------------------------------
-    def get_alloy_by_strength(self, min_strength):
-        res = f"## 引張強さ {min_strength} MPa 以上の合金\n\n"
-        hits = []
+def get_alloy_by_strength(self, min_strength: float):
+    response = f"## 🔍 引張強さ {min_strength} MPa 以上の合金\n\n"
+    results = []
 
-        if self.mechanical_table is not None:
-            for _, r in self.mechanical_table.iterrows():
-                try:
-                    s = float(r["引張強さ (MPa)"])
-                    if s >= min_strength:
-                        hits.append((s, r))
-                except:
-                    pass
+    if self.mechanical_table is None:
+        return response + "データが読み込まれていません。"
 
-        if not hits:
-            return res + "該当合金なし"
+    df = self.mechanical_table
 
-        hits.sort(reverse=True)
-        for s, r in hits[:10]:
-            name = self.safe_alloy_format(r["Alloy"], r["Temper"])
-            res += f"### {name}\n- 引張強さ: {s} MPa\n\n"
+    for _, row in df.iterrows():
+        raw_strength = row.get("引張強さ (MPa)", None)
 
-        return res
+        # 数値変換を安全に実行
+        try:
+            strength = float(raw_strength)
+        except:
+            continue  # 数値でなければスキップ
 
-    def get_pure_aluminum_info(self):
-        res = "## 🥈 純アルミ（1000系）\n\n"
-        info = self.series_info.get(1000)
-        if info:
-            res += f"- {info['name']}\n- 概要: {info['overview']}\n- 特性: {info['features']}\n\n"
-        return res
+        if strength >= min_strength:
+            results.append({
+                'alloy': self.safe_alloy_format(row.get('Alloy', ''), row.get('Temper', '')),
+                'strength': strength,
+                'series': row.get('系列', ''),
+                'row': row
+            })
 
-    def get_alloy_detailed_info(self, alloy):
-        res = f"## 📋 {alloy.upper()} の詳細\n\n"
-        alloy_num = re.findall(r"\d{4}", alloy)
-        if not alloy_num:
-            return res + "番号を認識できませんでした。"
-        alloy_num = alloy_num[0]
+    if not results:
+        return response + "該当する合金が見つかりませんでした。"
 
-        found = False
-        if self.mechanical_table is not None:
-            for _, r in self.mechanical_table.iterrows():
-                if str(r["Alloy"]).zfill(4) == alloy_num:
-                    found = True
-                    name = self.safe_alloy_format(r["Alloy"], r["Temper"])
-                    res += f"### {name}\n"
-                    for k, v in r.items():
-                        if pd.notna(v):
-                            res += f"- **{k}**: {v}\n"
-                    res += "\n"
+    # 強度の高い順に並べる
+    results.sort(key=lambda x: x['strength'], reverse=True)
 
-        if not found:
-            res += "該当データなし\n"
+    for r in results[:10]:
+        response += f"### ✨ {r['alloy']}\n"
+        response += f"- 引張強さ: {r['strength']} MPa\n"
 
-        return res
+        # 他のカラムを追加表示
+        for key, val in r['row'].items():
+            if pd.notna(val) and key not in ['Alloy', 'Temper', '引張強さ (MPa)']:
+                response += f"- **{key}**: {val}\n"
 
-    def compare_tempers(self, t1, t2):
-        res = f"## 🔄 {t1} と {t2} の違い\n\n"
-        for t in [t1, t2]:
-            res += f"### {t}\n- {self.temper_descriptions.get(t, '情報なし')}\n\n"
-        return res
+        response += "\n"
 
-    def search_by_properties(self, keys):
-        res = "## 特性検索\n\n"
-        hits = []
-        df = self.mechanical_table
-        if df is None:
-            return "データなし"
+    return response
 
-        for _, r in df.iterrows():
-            text = " ".join([str(v) for v in r.values]).lower()
-            if all(k.lower() in text for k in keys):
-                hits.append(r)
-
-        if not hits:
-            return res + "該当合金なし"
-
-        for r in hits[:10]:
-            name = self.safe_alloy_format(r["Alloy"], r["Temper"])
-            res += f"- {name}\n"
-
-        return res
 
     # --------------------------------------------------------
     # 振り分け
@@ -321,6 +286,7 @@ def main():
 # ------------------------------------------------------------
 if __name__ == "__main__":
     main()
+
 
 
 
