@@ -222,6 +222,16 @@ def main():
     st.title("🔧 アルミニウム合金 RAG ChatBot")
     st.markdown("### 材料選定支援システム")
 
+    # --- RAG の初期化（アップロードなしでも動作） ---
+    if "rag" not in st.session_state:
+        try:
+            # デフォルトデータを使う
+            st.session_state.rag = AluminumAlloyRAG(str(DEFAULT_DATA_PATH))
+            st.sidebar.info("デフォルトデータ（data/temp_data.xlsx）を使用しています。")
+        except Exception as e:
+            st.sidebar.error(f"❌ デフォルトデータの読み込みに失敗しました: {e}")
+    
+        
     # アップロードUI
     uploaded = st.sidebar.file_uploader("Excelファイルをアップロード", type=["xlsx", "xls"])
 
@@ -286,6 +296,7 @@ def main():
 # ------------------------------------------------------------
 if __name__ == "__main__":
     main()
+
 
 
 
