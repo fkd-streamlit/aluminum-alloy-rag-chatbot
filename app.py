@@ -441,54 +441,59 @@ def main():
     st.title("🔧 アルミニウム合金 RAG ChatBot")
     st.markdown("### 材料選定支援システム")
 
+    # Excel アップロード UI
     uploaded_file = st.sidebar.file_uploader(
         "Excelファイルをアップロードしてください",
         type=["xlsx", "xls"]
     )
 
+    # ▼▼▼🔧 データ読み込み（アップロード優先 → なければデフォルト） ▼▼▼
     if uploaded_file is not None:
-
         with open("temp_data.xlsx", "wb") as f:
             f.write(uploaded_file.getbuffer())
 
-        if "rag" not in st.session_state:
-            with st.spinner("データを読み込んでいます..."):
-                st.session_state.rag = AluminumAlloyRAG("temp_data.xlsx")
-        # シート一覧を表示
-        st.sidebar.markdown("---")
-        st.sidebar.subheader("📄 シート一覧")
-
-        with st.sidebar.expander("シート一覧を表示"):
-            for sheet_name in st.session_state.rag.data.keys():
-                st.write(f"- {sheet_name}")
-
-        st.sidebar.markdown("---")
-
-        st.sidebar.success("📁 データ読み込み完了")
-
-        st.sidebar.markdown("---")
-
-        # クイック検索
-        st.sidebar.subheader("🚀 クイック検索")
-        queries = [
-            "純アルミの特徴を教えて",
-            "引張強さが500MPa以上",
-            "A6061-T6 の詳細",
-            "T6 と T651 の違い",
-            "耐食性と溶接性が良い合金"
-        ]
-
-        for q in queries:
-            if st.sidebar.button(q):
-                st.session_state.messages.append({"role": "user", "content": q})
-                res = st.session_state.rag.process_query(q)
-                st.session_state.messages.append({"role": "assistant", "content": res})
-                st.rerun()
+        excel_path = "temp_data.xlsx"
+        st.sidebar.success("📁 アップロードしたExcelを読み込みました！")
 
     else:
-        st.warning("Excelファイルをアップロードしてください")
+        # GitHub 内のデフォルトデータを使用
+        DEFAULT_DATA_PATH = Path(__file__).parent / "data" / "temp_data.xlsx"
+        excel_path = DEFAULT_DATA_PATH
+        st.sidebar.info("📁 デフォルトデータ（temp_data.xlsx）を読み込みました。")
 
-    # チャット
+    # RAG 初期化
+    if "rag" not in st.session_state or uploaded_file is not None:
+        with st.spinner("データを読み込んでいます..."):
+            st.session_state.rag = AluminumAlloyRAG(excel_path)
+
+    # シート一覧を表示
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("📄 シート一覧")
+
+    with st.sidebar.expander("シート一覧を表示"):
+        for sheet_name in st.session_state.rag.data.keys():
+            st.write(f"- {sheet_name}")
+
+    st.sidebar.markdown("---")
+
+    # クイック検索
+    st.sidebar.subheader("🚀 クイック検索")
+    queries = [
+        "純アルミの特徴を教えて",
+        "引張強さが500MPa以上",
+        "A6061-T6 の詳細",
+        "T6 と T651 の違い",
+        "耐食性と溶接性が良い合金"
+    ]
+
+    for q in queries:
+        if st.sidebar.button(q):
+            st.session_state.messages.append({"role": "user", "content": q})
+            res = st.session_state.rag.process_query(q)
+            st.session_state.messages.append({"role": "assistant", "content": res})
+            st.rerun()
+
+    # ▼▼▼ チャット表示 ▼▼▼
     if "messages" not in st.session_state:
         st.session_state.messages = [{
             "role": "assistant",
@@ -499,17 +504,12 @@ def main():
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    if uploaded_file is not None:
-        query = st.chat_input("質問を入力してください")
-        if query:
-            st.session_state.messages.append({"role": "user", "content": query})
-            res = st.session_state.rag.process_query(query)
-            st.session_state.messages.append({"role": "assistant", "content": res})
-            st.rerun()
+    # ▼▼▼ チャット入力 ▼▼▼
+    query = st.chat_input("質問を入力してください")
+    if query:
+        st.session_state.messages.append({"role"_
 
 
-if __name__ == "__main__":
-    main()
 
 
 
