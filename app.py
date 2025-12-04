@@ -9,7 +9,7 @@ from typing import Dict, List, Optional
 from pathlib import Path
 
 # GitHub に置くデフォルトデータのパス
-DEFAULT_DATA_PATH = Path(__file__).parent /　"data" /  "temp_data.xlsx"
+DEFAULT_DATA_PATH = Path(__file__).parent / "data" / "temp_data.xlsx"
 
 # ページ設定
 st.set_page_config(
@@ -507,4 +507,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
