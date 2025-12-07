@@ -421,47 +421,44 @@ class AluminumAlloyRAG:
         text = q.lower()
         expanded_keywords = self.normalize_query(q)
 
-    # ----------------------------------
-    # 🔥 熱処理（T6 / T651 / O / H18など）←最優先
-    # ----------------------------------
-    m = re.search(r"\b(T\d+|O|H\d+)\b", q.upper())
-    if m:
-        return self.get_heat_treatment_info(m.group(1))
+        # --- 熱処理（T6 / T651 / O / H18 など）---
+        m = re.search(r"\b(T\d+|O|H\d+)\b", q.upper())
+        if m:
+            return self.get_heat_treatment_info(m.group(1))
 
-    # 純アルミ
-    if "純アルミ" in text or "1000系" in text:
-        return self.get_pure_aluminum_info()
+        # 純アルミ
+        if "純アルミ" in text or "1000系" in text:
+            return self.get_pure_aluminum_info()
 
-    # 引張強さ
-    if "引張" in text or ("強度" in text and "切削" not in text):
-        nums = re.findall(r"\d+", text)
-        val = int(nums[0]) if nums else 400
-        return self.get_alloy_by_strength(val)
+        # 引張強さ
+        if "引張" in text or ("強度" in text and "切削" not in text):
+            nums = re.findall(r"\d+", text)
+            val = int(nums[0]) if nums else 400
+            return self.get_alloy_by_strength(val)
 
-    # 特性ベース検索
-    if any(k in expanded_keywords for k in ["耐食", "溶接", "軽量", "高強度", "航空", "8000系"]):
-        return self.search_by_properties(expanded_keywords)
+        # 耐食性 / 溶接性など
+        if any(k in expanded_keywords for k in ["耐食", "溶接", "軽量", "高強度", "航空"]):
+            return self.search_by_properties(expanded_keywords)
 
-    # 調質比較（T6 と T651）
-    temps = re.findall(r"[TH]\d+", q.upper())
-    if len(temps) >= 2:
-        return self.compare_tempers(temps[0], temps[1])
+        # 調質比較
+        temps = re.findall(r"[TH]\d+", q.upper())
+        if len(temps) >= 2:
+            return self.compare_tempers(temps[0], temps[1])
 
-    # 特定合金
-    alloy = re.findall(r"A?\d{4}-?[HT]?\d*", q.upper())
-    if alloy:
-        return self.get_alloy_detailed_info(alloy[0])
+        # 特定合金
+        alloy = re.findall(r"A?\d{4}-?[HT]?\d*", q.upper())
+        if alloy:
+            return self.get_alloy_detailed_info(alloy[0])
 
-    # デフォルト案内
-    return (
-         "質問の例:\n"
-        "- T6とは？\n"
-        "- 純アルミの特徴を教えて\n"
-        "- 引張強さ 400MPa 以上の合金\n"
-        "- 耐食性と溶接性が良い合金\n"
-        "- A6061-T6 の詳細\n"
-        "- T6 と T651 の違い\n"
-    )
+        # デフォルト
+        return (
+            "質問の例:\n"
+            "- 純アルミの特徴を教えて\n"
+            "- 引張強さ 400MPa 以上の合金\n"
+            "- 耐食性と溶接性が良い合金\n"
+            "- A6061-T6 の詳細\n"
+            "- T6 と T651 の違い\n"
+        )
 
 
 
@@ -569,6 +566,7 @@ def main():
 # ------------------------------------------------------------
 if __name__ == "__main__":
     main()
+
 
 
 
