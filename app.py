@@ -171,17 +171,20 @@ class AluminumAlloyRAG:
                         "意味": str(row.get("意味", ""))
                     }
 
-    def get_heat_treatment_info(self, symbol: str):
-    info = self.heat_treatment_dict.get(symbol.upper())
-    if not info:
-        return f"❌ 熱処理 {symbol} の情報が見つかりませんでした。"
+        def get_heat_treatment_info(self, symbol: str) -> str:
+            info = self.heat_treatment_dict.get(symbol.upper())
+    
+            if not info:
+                return f"❌ 熱処理 {symbol} の情報が見つかりませんでした。"
+    
+            res = f"## 🔥 熱処理 {symbol}\n\n"
+            if info.get("定義"):
+                res += f"- **定義**：{info['定義']}\n"
+            if info.get("意味"):
+                res += f"- **意味**：{info['意味']}\n"
+    
+            return res
 
-    res = f"## 🔥 熱処理 {symbol}\n\n"
-    if info["定義"]:
-        res += f"- **定義**：{info['定義']}\n"
-    if info["意味"]:
-        res += f"- **意味**：{info['意味']}\n"
-    return res
 
 
     
@@ -451,10 +454,7 @@ class AluminumAlloyRAG:
             "- T6 と T651 の違い\n"
         )
 
-        # --- 熱処理（T6 など） ---
-        m = re.search(r"\b(T\d+|O|H\d+)\b", query.upper())
-        if m:
-            return self.get_heat_treatment_info(m.group(1))
+
 
 
 # ------------------------------------------------------------
@@ -560,3 +560,4 @@ def main():
 # ------------------------------------------------------------
 if __name__ == "__main__":
     main()
+
