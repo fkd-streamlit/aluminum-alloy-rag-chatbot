@@ -1,5 +1,5 @@
 # ------------------------------------------------------------
-# アルミニウム合金 RAG ChatBot - 完全版フル機能 / 安全動作版（2025リビルド）
+# アルミニウム合金 RAG ChatBot - 完全版フル機能 / 安全動作版（確定）
 # ------------------------------------------------------------
 
 import streamlit as st
@@ -43,6 +43,9 @@ st.markdown(
         background-color: #f5f5f5;
         border-left: 4px solid #4CAF50;
     }
+    h1 {
+        color: #1976D2;
+    }
 </style>
 """,
     unsafe_allow_html=True,
@@ -59,10 +62,9 @@ class AluminumAlloyRAG:
         self.series_info: Dict[int, Dict[str, str]] = {}
         self.all_alloys: Dict[str, List[Dict]] = {}
         self.mechanical_table: Optional[pd.DataFrame] = None
-        self.heat_treatment_dict = {}
+        self.heat_treatment_dict: Dict[str, Dict[str, str]] = {}
 
-
-        # 調質の概要
+        # 調質の概要（簡易説明）
         self.temper_descriptions = {
             "T6": "溶体化処理後、人工時効硬化処理を施したもの。",
             "T651": "T6に加え、残留応力除去のため引張処理。",
@@ -76,28 +78,25 @@ class AluminumAlloyRAG:
             "H18": "完全硬化",
         }
 
-        self.load_data(excel_path)
-        self.parse_all_sheets()
-        self.build_indexes()
-        # ---------------------------
         # 曖昧検索用・同義語辞書
-        # ---------------------------
         self.semantic_dict = {
             "8000系": ["8000", "al-li", "アルミリチウム", "aluminum lithium", "al li"],
             "7000系": ["超高強度", "航空機", "7075", "7050"],
             "6000系": ["汎用", "押出", "6061", "6063"],
             "1000系": ["純アルミ", "純アルミニウム"],
-
             "軽量": ["軽い", "低密度", "軽量化"],
             "高強度": ["強い", "高強度", "引張"],
             "耐食": ["耐食", "耐食性", "腐食"],
             "溶接": ["溶接", "溶接性"],
             "切削": ["切削", "加工しやすい"],
-
             "航空": ["航空", "宇宙", "ロケット", "機体"],
-            "構造材": ["構造", "フレーム", "骨組み"]
+            "構造材": ["構造", "フレーム", "骨組み"],
         }
 
+        # データ読み込み
+        self.load_data(excel_path)
+        self.parse_all_sheets()
+        self.build_indexes()
 
     # --------------------------------------------------------
     # 安全な合金名フォーマット
@@ -138,11 +137,13 @@ class AluminumAlloyRAG:
                             )
 
     # --------------------------------------------------------
-    # 系列情報 & 機械特性テーブル
+    # 系列情報 & 機械特性テーブル & 熱処理テーブル
     # --------------------------------------------------------
     def build_indexes(self):
+        # 機械特性テーブル
         self.mechanical_table = self.data.get("aluminum_handbook_table")
 
+        # 系列情報
         series_sheet = self.data.get("アルミニウム合金の特性")
         if series_sheet is not None:
             for _, r in series_sheet.iterrows():
@@ -158,9 +159,8 @@ class AluminumAlloyRAG:
                                 "代表的な特性（強度、溶接性、耐食性）", ""
                             ),
                         }
-        # -----------------------------
+
         # 熱処理（調質）ワークシート
-        # -----------------------------
         heat_sheet = self.data.get("熱処理")
         if heat_sheet is not None:
             for _, row in heat_sheet.iterrows():
@@ -168,16 +168,14 @@ class AluminumAlloyRAG:
                 if symbol:
                     self.heat_treatment_dict[symbol] = {
                         "定義": str(row.get("定義", "")),
-                        "意味": str(row.get("意味", ""))
+                        "意味": str(row.get("意味", "")),
                     }
 
     # --------------------------------------------------------
-    # 熱処理（調質）情報
+    # 熱処理情報
     # --------------------------------------------------------
     def get_heat_treatment_info(self, symbol: str) -> str:
-        symbol = symbol.upper()
-        info = self.heat_treatment_dict.get(symbol)
-
+        info = self.heat_treatment_dict.get(symbol.upper())
         if not info:
             return f"❌ 熱処理 {symbol} の情報が見つかりませんでした。"
 
@@ -186,13 +184,8 @@ class AluminumAlloyRAG:
             res += f"- **定義**：{info['定義']}\n"
         if info.get("意味"):
             res += f"- **意味**：{info['意味']}\n"
-
         return res
 
-
-
-
-    
     # --------------------------------------------------------
     # 純アルミ情報
     # --------------------------------------------------------
@@ -330,32 +323,19 @@ class AluminumAlloyRAG:
         return response
 
     # --------------------------------------------------------
-    # 調質比較
-    # --------------------------------------------------------
-    def compare_tempers(self, t1: str, t2: str) -> str:
-        t1, t2 = t1.upper(), t2.upper()
-        response = f"## 🔄 {t1} と {t2} の違い\n\n"
-
-        for t in [t1, t2]:
-            response += f"### {t}\n"
-            if t in self.temper_descriptions:
-                response += f"- {self.temper_descriptions[t]}\n"
-            response += "\n"
-
-        return response
-
-    # --------------------------------------------------------
     # 特性ベース検索
     # --------------------------------------------------------
     def search_by_properties(self, keywords: List[str]) -> str:
         response = "## 🔎 検索結果\n\n"
 
+        # 系列レベル
         series_hit = set()
         for series, info in self.series_info.items():
             text = f"{info['name']} {info['overview']} {info['features']}".lower()
             if all(k.lower() in text for k in keywords):
                 series_hit.add(series)
 
+        # 合金レベル
         alloy_hit = []
         if self.mechanical_table is not None:
             for _, row in self.mechanical_table.iterrows():
@@ -397,8 +377,8 @@ class AluminumAlloyRAG:
             response += "\n"
 
         return response
-        
-    #--------------------------------------------------------
+
+    # --------------------------------------------------------
     # 曖昧検索ワードの正規化
     # --------------------------------------------------------
     def normalize_query(self, query: str) -> List[str]:
@@ -410,51 +390,56 @@ class AluminumAlloyRAG:
                 if v.lower() in query_l:
                     keywords.add(canonical)
 
-        tokens = re.findall(r'[一-龥A-Za-z0-9\-]+', query)
+        tokens = re.findall(r"[一-龥A-Za-z0-9\-]+", query)
         keywords.update(tokens)
 
         return list(keywords)
 
-    
     # --------------------------------------------------------
     # クエリ振り分け
     # --------------------------------------------------------
     def process_query(self, q: str) -> str:
-        # 表記ゆれ補正
-        q = re.sub(r"\b0材\b", "O材", q)
-    
         text = q.lower()
         expanded_keywords = self.normalize_query(q)
-    
-        # ✅ 最優先：熱処理（T6 / T651 / O / H18）
-        m = re.search(r"(T\d{1,3}|O|H\d{1,2})", q.upper())
-        if m:
-            return self.get_heat_treatment_info(m.group(1))
-    
+
+        # 4桁合金記号が含まれているか（A6061-T6 など）
+        alloy_match = re.search(r"A?\d{4}-?[HT]?\d*", q.upper())
+
+        # --- 熱処理（T6 / T651 / O / H18 など）---
+        # 合金記号が無い場合のみ、純粋な熱処理として扱う
+        if not alloy_match:
+            m = re.search(r"\b(T\d+|O|H\d+)\b", q.upper())
+            if m:
+                return self.get_heat_treatment_info(m.group(1))
+
         # 純アルミ
         if "純アルミ" in text or "1000系" in text:
             return self.get_pure_aluminum_info()
-    
+
         # 引張強さ
-        if "引張" in text or "強度" in text:
+        if "引張" in text or ("強度" in text and "切削" not in text):
             nums = re.findall(r"\d+", text)
             val = int(nums[0]) if nums else 400
             return self.get_alloy_by_strength(val)
-    
-        # 耐食性 / 溶接性など
+
+        # 8000系（Al-Li）などの系列指定
+        if "8000系" in expanded_keywords:
+            return self.search_by_properties(["8000"])
+
+        # 耐食性 / 溶接性 などの特性ベース
         if any(k in expanded_keywords for k in ["耐食", "溶接", "軽量", "高強度", "航空"]):
             return self.search_by_properties(expanded_keywords)
-    
-        # 調質比較
-        temps = re.findall(r"[TH]\d{1,3}", q.upper())
+
+        # 調質比較（T6 vs T651 など）
+        temps = re.findall(r"[TH]\d+", q.upper())
         if len(temps) >= 2:
             return self.compare_tempers(temps[0], temps[1])
-    
+
         # 特定合金
-        alloy = re.findall(r"A?\d{4}-?[HT]?\d*", q.upper())
-        if alloy:
-            return self.get_alloy_detailed_info(alloy[0])
-    
+        if alloy_match:
+            return self.get_alloy_detailed_info(alloy_match.group(0))
+
+        # デフォルト案内
         return (
             "質問の例:\n"
             "- 純アルミの特徴を教えて\n"
@@ -462,118 +447,124 @@ class AluminumAlloyRAG:
             "- 耐食性と溶接性が良い合金\n"
             "- A6061-T6 の詳細\n"
             "- T6 と T651 の違い\n"
+            "- T6処理とは？ / O材とは？ など\n"
         )
-    
-    
-    
-    
-    # ------------------------------------------------------------
-    # Streamlit アプリ本体
-    # ------------------------------------------------------------
-    
-    
-    def main():
-        st.title("🔧 アルミニウム合金 RAG ChatBot")
-        st.markdown("### 材料選定支援システム")
-    
-        # -------------------------------
-        # Excel ファイル選択（アップロード or デフォルト）
-        # -------------------------------
-        uploaded = st.sidebar.file_uploader(
-            "Excelファイルをアップロード", type=["xlsx", "xls"]
-        )
-    
-        if uploaded is not None:
-            # アップロードされたファイルを一時保存
-            temp_path = Path("temp_data_uploaded.xlsx")
-            with open(temp_path, "wb") as f:
-                f.write(uploaded.getbuffer())
-            excel_path = str(temp_path)
-            st.sidebar.success("アップロードした Excel を読み込みます。")
-        else:
-            excel_path = str(DEFAULT_DATA_PATH)
-            st.sidebar.info("デフォルトデータ（data/temp_data.xlsx）を使用しています。")
-    
-        # -------------------------------
-        # RAG 初期化（パスが変わったら再読み込み）
-        # -------------------------------
-        need_reload = False
-        if "excel_path" not in st.session_state:
-            need_reload = True
-        elif st.session_state.excel_path != excel_path:
-            need_reload = True
-    
-        if need_reload:
-            try:
-                with st.spinner("データを読み込んでいます..."):
-                    st.session_state.rag = AluminumAlloyRAG(excel_path)
-                    st.session_state.excel_path = excel_path
-            except Exception as e:
-                st.error(f"❌ データ読み込みに失敗しました: {e}")
-                return
-    
-        rag: AluminumAlloyRAG = st.session_state.rag
-    
-        # -------------------------------
-        # サイドバー：シート一覧
-        # -------------------------------
-        st.sidebar.subheader("📄 シート一覧")
-        with st.sidebar.expander("表示"):
-            for s in rag.data.keys():
-                st.write(f"- {s}")
-    
-        # -------------------------------
-        # サイドバー：クイック検索
-        # -------------------------------
-        st.sidebar.subheader("🚀 クイック検索")
-        quick_queries = [
-            "純アルミの特徴を教えて",
-            "引張強さが500MPa以上",
-            "A6061-T6 の詳細",
-            "T6 と T651 の違い",
-            "耐食性と溶接性が良い合金",
-        ]
-        for q in quick_queries:
-            if st.sidebar.button(q):
-                st.session_state.messages.append({"role": "user", "content": q})
-                ans = rag.process_query(q)
-                st.session_state.messages.append({"role": "assistant", "content": ans})
-                st.rerun()
-    
-        # -------------------------------
-        # チャット履歴の初期化
-        # -------------------------------
-        if "messages" not in st.session_state:
-            st.session_state.messages = [
-                {
-                    "role": "assistant",
-                    "content": "こんにちは！アルミニウム合金の材料選定をお手伝いします。",
-                }
-            ]
-    
-        # 履歴表示
-        for m in st.session_state.messages:
-            with st.chat_message(m["role"]):
-                st.markdown(m["content"])
-    
-        # -------------------------------
-        # 入力欄
-        # -------------------------------
-        q = st.chat_input("質問を入力してください")
-        if q:
-            st.session_state.messages.append({"role": "user", "content": q})
-            ans = rag.process_query(q)
-            st.session_state.messages.append({"role": "assistant", "content": ans})
+
+
+# ------------------------------------------------------------
+# Streamlit アプリ本体
+# ------------------------------------------------------------
+
+
+def main():
+    st.title("🔧 アルミニウム合金 RAG ChatBot")
+    st.markdown("### 材料選定支援システム")
+
+    # -------------------------------
+    # Excel ファイル選択（アップロード or デフォルト）
+    # -------------------------------
+    uploaded = st.sidebar.file_uploader(
+        "Excelファイルをアップロード", type=["xlsx", "xls"]
+    )
+
+    if uploaded is not None:
+        # アップロードされたファイルを一時保存
+        temp_path = Path("temp_data_uploaded.xlsx")
+        with open(temp_path, "wb") as f:
+            f.write(uploaded.getbuffer())
+        excel_path = str(temp_path)
+        st.sidebar.success("アップロードした Excel を読み込みます。")
+    else:
+        excel_path = str(DEFAULT_DATA_PATH)
+        st.sidebar.info("デフォルトデータ（data/temp_data.xlsx）を使用しています。")
+
+    # -------------------------------
+    # RAG 初期化（パスが変わったら再読み込み）
+    # -------------------------------
+    need_reload = False
+    if "excel_path" not in st.session_state:
+        need_reload = True
+    elif st.session_state.excel_path != excel_path:
+        need_reload = True
+
+    if need_reload:
+        try:
+            with st.spinner("データを読み込んでいます..."):
+                st.session_state.rag = AluminumAlloyRAG(excel_path)
+                st.session_state.excel_path = excel_path
+        except Exception as e:
+            st.error(f"❌ データ読み込みに失敗しました: {e}")
+            return
+
+    rag: AluminumAlloyRAG = st.session_state.rag
+
+    # -------------------------------
+    # サイドバー：シート一覧
+    # -------------------------------
+    st.sidebar.subheader("📄 シート一覧")
+    with st.sidebar.expander("表示"):
+        for s in rag.data.keys():
+            st.write(f"- {s}")
+
+    # -------------------------------
+    # サイドバー：クイック検索
+    # -------------------------------
+    st.sidebar.subheader("🚀 クイック検索")
+
+    quick_queries = [
+        "T6とは？",
+        "T6処理について教えて",
+        "O材とは？",
+        "純アルミの特徴を教えて",
+        "引張強さが500MPa以上",
+        "A6061-T6 の詳細",
+        "T6 と T651 の違い",
+        "8000系の材料について教えて",
+        "耐食性と溶接性が良い合金",
+    ]
+
+    for q0 in quick_queries:
+        if st.sidebar.button(q0):
+            st.session_state.messages.append({"role": "user", "content": q0})
+            ans0 = rag.process_query(q0)
+            st.session_state.messages.append({"role": "assistant", "content": ans0})
             st.rerun()
+
+    # -------------------------------
+    # チャット履歴の初期化
+    # -------------------------------
+    if "messages" not in st.session_state:
+        st.session_state.messages = [
+            {
+                "role": "assistant",
+                "content": "こんにちは！アルミニウム合金の材料選定をお手伝いします。",
+            }
+        ]
+
+    # 履歴表示
+    for m in st.session_state.messages:
+        with st.chat_message(m["role"]):
+            st.markdown(m["content"])
+
+    # -------------------------------
+    # 入力欄
+    # -------------------------------
+    q = st.chat_input("質問を入力してください")
+    if q:
+        st.session_state.messages.append({"role": "user", "content": q})
+        ans = rag.process_query(q)
+        st.session_state.messages.append({"role": "assistant", "content": ans})
+        st.rerun()
+
+
+# ------------------------------------------------------------
+if __name__ == "__main__":
+    main()
+
     
     
-    # ------------------------------------------------------------
-    if __name__ == "__main__":
-        main()
     
     
     
     
-    
-    
-    
+
