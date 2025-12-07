@@ -59,6 +59,8 @@ class AluminumAlloyRAG:
         self.series_info: Dict[int, Dict[str, str]] = {}
         self.all_alloys: Dict[str, List[Dict]] = {}
         self.mechanical_table: Optional[pd.DataFrame] = None
+        self.heat_treatment_dict = {}
+
 
         # 調質の概要
         self.temper_descriptions = {
@@ -156,7 +158,33 @@ class AluminumAlloyRAG:
                                 "代表的な特性（強度、溶接性、耐食性）", ""
                             ),
                         }
+        # -----------------------------
+        # 熱処理（調質）ワークシート
+        # -----------------------------
+        heat_sheet = self.data.get("熱処理")
+        if heat_sheet is not None:
+            for _, row in heat_sheet.iterrows():
+                symbol = str(row.get("記号", "")).strip().upper()
+                if symbol:
+                    self.heat_treatment_dict[symbol] = {
+                        "定義": str(row.get("定義", "")),
+                        "意味": str(row.get("意味", ""))
+                    }
 
+    def get_heat_treatment_info(self, symbol: str):
+    info = self.heat_treatment_dict.get(symbol.upper())
+    if not info:
+        return f"❌ 熱処理 {symbol} の情報が見つかりませんでした。"
+
+    res = f"## 🔥 熱処理 {symbol}\n\n"
+    if info["定義"]:
+        res += f"- **定義**：{info['定義']}\n"
+    if info["意味"]:
+        res += f"- **意味**：{info['意味']}\n"
+    return res
+
+
+    
     # --------------------------------------------------------
     # 純アルミ情報
     # --------------------------------------------------------
@@ -423,6 +451,11 @@ class AluminumAlloyRAG:
             "- T6 と T651 の違い\n"
         )
 
+        # --- 熱処理（T6 など） ---
+        m = re.search(r"\b(T\d+|O|H\d+)\b", query.upper())
+        if m:
+            return self.get_heat_treatment_info(m.group(1))
+
 
 # ------------------------------------------------------------
 # Streamlit アプリ本体
@@ -527,6 +560,7 @@ def main():
 # ------------------------------------------------------------
 if __name__ == "__main__":
     main()
+
 
 
 
