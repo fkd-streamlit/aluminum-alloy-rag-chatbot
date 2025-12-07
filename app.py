@@ -77,6 +77,25 @@ class AluminumAlloyRAG:
         self.load_data(excel_path)
         self.parse_all_sheets()
         self.build_indexes()
+        # ---------------------------
+        # 曖昧検索用・同義語辞書
+        # ---------------------------
+        self.semantic_dict = {
+            "8000系": ["8000", "al-li", "アルミリチウム", "aluminum lithium", "al li"],
+            "7000系": ["超高強度", "航空機", "7075", "7050"],
+            "6000系": ["汎用", "押出", "6061", "6063"],
+            "1000系": ["純アルミ", "純アルミニウム"],
+
+            "軽量": ["軽い", "低密度", "軽量化"],
+            "高強度": ["強い", "高強度", "引張"],
+            "耐食": ["耐食", "耐食性", "腐食"],
+            "溶接": ["溶接", "溶接性"],
+            "切削": ["切削", "加工しやすい"],
+
+            "航空": ["航空", "宇宙", "ロケット", "機体"],
+            "構造材": ["構造", "フレーム", "骨組み"]
+        }
+
 
     # --------------------------------------------------------
     # 安全な合金名フォーマット
@@ -343,12 +362,32 @@ class AluminumAlloyRAG:
 
         return response
 
+　　# --------------------------------------------------------
+    # 曖昧検索ワードの正規化
+    # --------------------------------------------------------
+    def normalize_query(self, query: str) -> List[str]:
+        query_l = query.lower()
+        keywords = set()
+
+        for canonical, variants in self.semantic_dict.items():
+            for v in variants:
+                if v.lower() in query_l:
+                    keywords.add(canonical)
+
+        tokens = re.findall(r'[一-龥A-Za-z0-9\-]+', query)
+        keywords.update(tokens)
+
+        return list(keywords)
+
+    
     # --------------------------------------------------------
     # クエリ振り分け
     # --------------------------------------------------------
     def process_query(self, q: str) -> str:
         text = q.lower()
+        expanded_keywords = self.normalize_query(q)
 
+        
         # 純アルミ
         if "純アルミ" in text or "1000系" in text:
             return self.get_pure_aluminum_info()
@@ -360,13 +399,9 @@ class AluminumAlloyRAG:
             return self.get_alloy_by_strength(val)
 
         # 耐食性 / 溶接性
-        if "耐食" in text or "溶接" in text:
-            keys = []
-            if "耐食" in text:
-                keys.append("耐食")
-            if "溶接" in text:
-                keys.append("溶接")
-            return self.search_by_properties(keys)
+        if any(k in expanded_keywords for k in ["耐食", "溶接", "軽量", "高強度", "航空"]):
+            return self.search_by_properties(expanded_keywords)
+
 
         # 調質比較
         temps = re.findall(r"[TH]\d+", q.upper())
@@ -492,6 +527,7 @@ def main():
 # ------------------------------------------------------------
 if __name__ == "__main__":
     main()
+
 
 
 
