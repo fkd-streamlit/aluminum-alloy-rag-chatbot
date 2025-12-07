@@ -419,160 +419,161 @@ class AluminumAlloyRAG:
     # --------------------------------------------------------
     # クエリ振り分け
     # --------------------------------------------------------
-def process_query(self, q: str) -> str:
-    # 表記ゆれ補正
-    q = re.sub(r"\b0材\b", "O材", q)
-
-    text = q.lower()
-    expanded_keywords = self.normalize_query(q)
-
-    # ✅ 最優先：熱処理（T6 / T651 / O / H18）
-    m = re.search(r"(T\d{1,3}|O|H\d{1,2})", q.upper())
-    if m:
-        return self.get_heat_treatment_info(m.group(1))
-
-    # 純アルミ
-    if "純アルミ" in text or "1000系" in text:
-        return self.get_pure_aluminum_info()
-
-    # 引張強さ
-    if "引張" in text or "強度" in text:
-        nums = re.findall(r"\d+", text)
-        val = int(nums[0]) if nums else 400
-        return self.get_alloy_by_strength(val)
-
-    # 耐食性 / 溶接性など
-    if any(k in expanded_keywords for k in ["耐食", "溶接", "軽量", "高強度", "航空"]):
-        return self.search_by_properties(expanded_keywords)
-
-    # 調質比較
-    temps = re.findall(r"[TH]\d{1,3}", q.upper())
-    if len(temps) >= 2:
-        return self.compare_tempers(temps[0], temps[1])
-
-    # 特定合金
-    alloy = re.findall(r"A?\d{4}-?[HT]?\d*", q.upper())
-    if alloy:
-        return self.get_alloy_detailed_info(alloy[0])
-
-    return (
-        "質問の例:\n"
-        "- 純アルミの特徴を教えて\n"
-        "- 引張強さ 400MPa 以上の合金\n"
-        "- 耐食性と溶接性が良い合金\n"
-        "- A6061-T6 の詳細\n"
-        "- T6 と T651 の違い\n"
-    )
-
-
-
-
-# ------------------------------------------------------------
-# Streamlit アプリ本体
-# ------------------------------------------------------------
-
-
-def main():
-    st.title("🔧 アルミニウム合金 RAG ChatBot")
-    st.markdown("### 材料選定支援システム")
-
-    # -------------------------------
-    # Excel ファイル選択（アップロード or デフォルト）
-    # -------------------------------
-    uploaded = st.sidebar.file_uploader(
-        "Excelファイルをアップロード", type=["xlsx", "xls"]
-    )
-
-    if uploaded is not None:
-        # アップロードされたファイルを一時保存
-        temp_path = Path("temp_data_uploaded.xlsx")
-        with open(temp_path, "wb") as f:
-            f.write(uploaded.getbuffer())
-        excel_path = str(temp_path)
-        st.sidebar.success("アップロードした Excel を読み込みます。")
-    else:
-        excel_path = str(DEFAULT_DATA_PATH)
-        st.sidebar.info("デフォルトデータ（data/temp_data.xlsx）を使用しています。")
-
-    # -------------------------------
-    # RAG 初期化（パスが変わったら再読み込み）
-    # -------------------------------
-    need_reload = False
-    if "excel_path" not in st.session_state:
-        need_reload = True
-    elif st.session_state.excel_path != excel_path:
-        need_reload = True
-
-    if need_reload:
-        try:
-            with st.spinner("データを読み込んでいます..."):
-                st.session_state.rag = AluminumAlloyRAG(excel_path)
-                st.session_state.excel_path = excel_path
-        except Exception as e:
-            st.error(f"❌ データ読み込みに失敗しました: {e}")
-            return
-
-    rag: AluminumAlloyRAG = st.session_state.rag
-
-    # -------------------------------
-    # サイドバー：シート一覧
-    # -------------------------------
-    st.sidebar.subheader("📄 シート一覧")
-    with st.sidebar.expander("表示"):
-        for s in rag.data.keys():
-            st.write(f"- {s}")
-
-    # -------------------------------
-    # サイドバー：クイック検索
-    # -------------------------------
-    st.sidebar.subheader("🚀 クイック検索")
-    quick_queries = [
-        "純アルミの特徴を教えて",
-        "引張強さが500MPa以上",
-        "A6061-T6 の詳細",
-        "T6 と T651 の違い",
-        "耐食性と溶接性が良い合金",
-    ]
-    for q in quick_queries:
-        if st.sidebar.button(q):
+    def process_query(self, q: str) -> str:
+        # 表記ゆれ補正
+        q = re.sub(r"\b0材\b", "O材", q)
+    
+        text = q.lower()
+        expanded_keywords = self.normalize_query(q)
+    
+        # ✅ 最優先：熱処理（T6 / T651 / O / H18）
+        m = re.search(r"(T\d{1,3}|O|H\d{1,2})", q.upper())
+        if m:
+            return self.get_heat_treatment_info(m.group(1))
+    
+        # 純アルミ
+        if "純アルミ" in text or "1000系" in text:
+            return self.get_pure_aluminum_info()
+    
+        # 引張強さ
+        if "引張" in text or "強度" in text:
+            nums = re.findall(r"\d+", text)
+            val = int(nums[0]) if nums else 400
+            return self.get_alloy_by_strength(val)
+    
+        # 耐食性 / 溶接性など
+        if any(k in expanded_keywords for k in ["耐食", "溶接", "軽量", "高強度", "航空"]):
+            return self.search_by_properties(expanded_keywords)
+    
+        # 調質比較
+        temps = re.findall(r"[TH]\d{1,3}", q.upper())
+        if len(temps) >= 2:
+            return self.compare_tempers(temps[0], temps[1])
+    
+        # 特定合金
+        alloy = re.findall(r"A?\d{4}-?[HT]?\d*", q.upper())
+        if alloy:
+            return self.get_alloy_detailed_info(alloy[0])
+    
+        return (
+            "質問の例:\n"
+            "- 純アルミの特徴を教えて\n"
+            "- 引張強さ 400MPa 以上の合金\n"
+            "- 耐食性と溶接性が良い合金\n"
+            "- A6061-T6 の詳細\n"
+            "- T6 と T651 の違い\n"
+        )
+    
+    
+    
+    
+    # ------------------------------------------------------------
+    # Streamlit アプリ本体
+    # ------------------------------------------------------------
+    
+    
+    def main():
+        st.title("🔧 アルミニウム合金 RAG ChatBot")
+        st.markdown("### 材料選定支援システム")
+    
+        # -------------------------------
+        # Excel ファイル選択（アップロード or デフォルト）
+        # -------------------------------
+        uploaded = st.sidebar.file_uploader(
+            "Excelファイルをアップロード", type=["xlsx", "xls"]
+        )
+    
+        if uploaded is not None:
+            # アップロードされたファイルを一時保存
+            temp_path = Path("temp_data_uploaded.xlsx")
+            with open(temp_path, "wb") as f:
+                f.write(uploaded.getbuffer())
+            excel_path = str(temp_path)
+            st.sidebar.success("アップロードした Excel を読み込みます。")
+        else:
+            excel_path = str(DEFAULT_DATA_PATH)
+            st.sidebar.info("デフォルトデータ（data/temp_data.xlsx）を使用しています。")
+    
+        # -------------------------------
+        # RAG 初期化（パスが変わったら再読み込み）
+        # -------------------------------
+        need_reload = False
+        if "excel_path" not in st.session_state:
+            need_reload = True
+        elif st.session_state.excel_path != excel_path:
+            need_reload = True
+    
+        if need_reload:
+            try:
+                with st.spinner("データを読み込んでいます..."):
+                    st.session_state.rag = AluminumAlloyRAG(excel_path)
+                    st.session_state.excel_path = excel_path
+            except Exception as e:
+                st.error(f"❌ データ読み込みに失敗しました: {e}")
+                return
+    
+        rag: AluminumAlloyRAG = st.session_state.rag
+    
+        # -------------------------------
+        # サイドバー：シート一覧
+        # -------------------------------
+        st.sidebar.subheader("📄 シート一覧")
+        with st.sidebar.expander("表示"):
+            for s in rag.data.keys():
+                st.write(f"- {s}")
+    
+        # -------------------------------
+        # サイドバー：クイック検索
+        # -------------------------------
+        st.sidebar.subheader("🚀 クイック検索")
+        quick_queries = [
+            "純アルミの特徴を教えて",
+            "引張強さが500MPa以上",
+            "A6061-T6 の詳細",
+            "T6 と T651 の違い",
+            "耐食性と溶接性が良い合金",
+        ]
+        for q in quick_queries:
+            if st.sidebar.button(q):
+                st.session_state.messages.append({"role": "user", "content": q})
+                ans = rag.process_query(q)
+                st.session_state.messages.append({"role": "assistant", "content": ans})
+                st.rerun()
+    
+        # -------------------------------
+        # チャット履歴の初期化
+        # -------------------------------
+        if "messages" not in st.session_state:
+            st.session_state.messages = [
+                {
+                    "role": "assistant",
+                    "content": "こんにちは！アルミニウム合金の材料選定をお手伝いします。",
+                }
+            ]
+    
+        # 履歴表示
+        for m in st.session_state.messages:
+            with st.chat_message(m["role"]):
+                st.markdown(m["content"])
+    
+        # -------------------------------
+        # 入力欄
+        # -------------------------------
+        q = st.chat_input("質問を入力してください")
+        if q:
             st.session_state.messages.append({"role": "user", "content": q})
             ans = rag.process_query(q)
             st.session_state.messages.append({"role": "assistant", "content": ans})
             st.rerun()
-
-    # -------------------------------
-    # チャット履歴の初期化
-    # -------------------------------
-    if "messages" not in st.session_state:
-        st.session_state.messages = [
-            {
-                "role": "assistant",
-                "content": "こんにちは！アルミニウム合金の材料選定をお手伝いします。",
-            }
-        ]
-
-    # 履歴表示
-    for m in st.session_state.messages:
-        with st.chat_message(m["role"]):
-            st.markdown(m["content"])
-
-    # -------------------------------
-    # 入力欄
-    # -------------------------------
-    q = st.chat_input("質問を入力してください")
-    if q:
-        st.session_state.messages.append({"role": "user", "content": q})
-        ans = rag.process_query(q)
-        st.session_state.messages.append({"role": "assistant", "content": ans})
-        st.rerun()
-
-
-# ------------------------------------------------------------
-if __name__ == "__main__":
-    main()
-
-
-
-
-
-
+    
+    
+    # ------------------------------------------------------------
+    if __name__ == "__main__":
+        main()
+    
+    
+    
+    
+    
+    
+    
