@@ -161,7 +161,9 @@ class AluminumAlloyRAG:
                         }
 
 
-        # 熱処理（調質）ワークシート
+        # --------------------------------------------------------
+        # 熱処理（調質）ワークシートの読み込み
+        # --------------------------------------------------------
         heat_sheet = self.data.get("熱処理")
         if heat_sheet is not None:
             for _, row in heat_sheet.iterrows():
@@ -172,33 +174,35 @@ class AluminumAlloyRAG:
                 definition = str(row.get("定義", "")).strip()
                 meaning = str(row.get("意味", "")).strip()
         
-        if symbol not in self.heat_treatment_dict:
-        self.heat_treatment_dict[symbol] = []
-    
-    self.heat_treatment_dict[symbol].append({
-        "定義": str(row.get("定義", "")).strip(),
-        "意味": str(row.get("意味", "")).strip(),
-    })
+                if symbol not in self.heat_treatment_dict:
+                    self.heat_treatment_dict[symbol] = []
+        
+                self.heat_treatment_dict[symbol].append({
+                    "定義": definition,
+                    "意味": meaning,
+                })
 
+    
     
     # --------------------------------------------------------
     # 熱処理情報
     # --------------------------------------------------------
+
     def get_heat_treatment_info(self, symbol: str) -> str:
-    infos = self.heat_treatment_dict.get(symbol.upper())
-    if not infos:
-        return f"❌ 熱処理 {symbol} の情報が見つかりませんでした。"
-
-    res = f"## 🔥 熱処理 {symbol}\n\n"
-
-    for i, info in enumerate(infos, start=1):
-        if info.get("定義"):
-            res += f"### 定義 {i}\n- {info['定義']}\n"
-        if info.get("意味"):
-            res += f"- **意味**：{info['意味']}\n"
-        res += "\n"
-
-    return res
+        infos = self.heat_treatment_dict.get(symbol.upper())
+        if not infos:
+            return f"❌ 熱処理 {symbol} の情報が見つかりませんでした。"
+    
+        res = f"## 🔥 熱処理 {symbol}\n\n"
+    
+        for i, info in enumerate(infos, start=1):
+            if info.get("定義"):
+                res += f"### 定義 {i}\n- {info['定義']}\n"
+            if info.get("意味"):
+                res += f"- **意味**：{info['意味']}\n"
+            res += "\n"
+    
+        return res
 
 
     # --------------------------------------------------------
@@ -603,6 +607,7 @@ if __name__ == "__main__":
     
     
     
+
 
 
 
