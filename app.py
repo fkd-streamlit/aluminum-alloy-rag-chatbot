@@ -172,10 +172,11 @@ class AluminumAlloyRAG:
                     }
 
     # --------------------------------------------------------
-    # 熱処理（T6 / T651 / O / H18 など）
+    # 熱処理（調質）情報
     # --------------------------------------------------------
     def get_heat_treatment_info(self, symbol: str) -> str:
-        info = self.heat_treatment_dict.get(symbol.upper())
+        symbol = symbol.upper()
+        info = self.heat_treatment_dict.get(symbol)
 
         if not info:
             return f"❌ 熱処理 {symbol} の情報が見つかりませんでした。"
@@ -187,6 +188,7 @@ class AluminumAlloyRAG:
             res += f"- **意味**：{info['意味']}\n"
 
         return res
+
 
 
 
@@ -422,7 +424,7 @@ class AluminumAlloyRAG:
         expanded_keywords = self.normalize_query(q)
 
         # --- 熱処理（T6 / T651 / O / H18 など）---
-        m = re.search(r"\b(T\d+|O|H\d+)\b", q.upper())
+        m = re.search(r"(T\d{1,3}|O|H\d{1,2})", q.upper())
         if m:
             return self.get_heat_treatment_info(m.group(1))
 
@@ -566,6 +568,7 @@ def main():
 # ------------------------------------------------------------
 if __name__ == "__main__":
     main()
+
 
 
 
