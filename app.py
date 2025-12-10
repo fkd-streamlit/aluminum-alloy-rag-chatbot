@@ -203,6 +203,38 @@ class AluminumAlloyRAG:
             res += "\n"
     
         return res
+    # --------------------------------------------------------
+    # 熱処理の比較（T6 と T651 など）★ここ！
+    # --------------------------------------------------------
+    def compare_tempers(self, t1: str, t2: str) -> str:
+        t1 = t1.upper()
+        t2 = t2.upper()
+
+        infos1 = self.heat_treatment_dict.get(t1)
+        infos2 = self.heat_treatment_dict.get(t2)
+
+        if not infos1 or not infos2:
+            return "❌ 比較する熱処理情報が見つかりませんでした。"
+
+        res = f"## 🔥 熱処理 {t1} と {t2} の違い\n\n"
+
+        res += f"### {t1}\n"
+        for info in infos1:
+            if info.get("定義"):
+                res += f"- **定義**：{info['定義']}\n"
+            if info.get("意味"):
+                res += f"- **意味**：{info['意味']}\n"
+
+        res += "\n---\n"
+
+        res += f"### {t2}\n"
+        for info in infos2:
+            if info.get("定義"):
+                res += f"- **定義**：{info['定義']}\n"
+            if info.get("意味"):
+                res += f"- **意味**：{info['意味']}\n"
+
+        return res        
 
 
     # --------------------------------------------------------
@@ -595,6 +627,7 @@ if __name__ == "__main__":
     
     
     
+
 
 
 
