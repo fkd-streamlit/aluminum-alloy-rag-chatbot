@@ -62,7 +62,8 @@ class AluminumAlloyRAG:
         self.series_info: Dict[int, Dict[str, str]] = {}
         self.all_alloys: Dict[str, List[Dict]] = {}
         self.mechanical_table: Optional[pd.DataFrame] = None
-        self.heat_treatment_dict: Dict[str, Dict[str, str]] = {}
+        # 実際の中身は List[Dict[str,str]] なのでコメントだけ補足
+        self.heat_treatment_dict: Dict[str, List[Dict[str, str]]] = {}
 
         # 調質の概要（簡易説明）
         self.temper_descriptions = {
@@ -160,7 +161,6 @@ class AluminumAlloyRAG:
                             ),
                         }
 
-
         # --------------------------------------------------------
         # 熱処理（調質）ワークシートの読み込み
         # --------------------------------------------------------
@@ -170,41 +170,41 @@ class AluminumAlloyRAG:
                 symbol = str(row.get("記号", "")).strip().upper()
                 if not symbol:
                     continue
-        
+
                 definition = str(row.get("定義", "")).strip()
                 meaning = str(row.get("意味", "")).strip()
-        
+
                 if symbol not in self.heat_treatment_dict:
                     self.heat_treatment_dict[symbol] = []
-        
-                self.heat_treatment_dict[symbol].append({
-                    "定義": definition,
-                    "意味": meaning,
-                })
 
-    
-    
+                self.heat_treatment_dict[symbol].append(
+                    {
+                        "定義": definition,
+                        "意味": meaning,
+                    }
+                )
+
     # --------------------------------------------------------
     # 熱処理情報
     # --------------------------------------------------------
-
     def get_heat_treatment_info(self, symbol: str) -> str:
         infos = self.heat_treatment_dict.get(symbol.upper())
         if not infos:
             return f"❌ 熱処理 {symbol} の情報が見つかりませんでした。"
-    
+
         res = f"## 🔥 熱処理 {symbol}\n\n"
-    
+
         for i, info in enumerate(infos, start=1):
             if info.get("定義"):
                 res += f"### 定義 {i}\n- {info['定義']}\n"
             if info.get("意味"):
                 res += f"- **意味**：{info['意味']}\n"
             res += "\n"
-    
+
         return res
+
     # --------------------------------------------------------
-    # 熱処理の比較（T6 と T651 など）★ここ！
+    # 熱処理の比較（T6 と T651 など）
     # --------------------------------------------------------
     def compare_tempers(self, t1: str, t2: str) -> str:
         t1 = t1.upper()
@@ -234,8 +234,7 @@ class AluminumAlloyRAG:
             if info.get("意味"):
                 res += f"- **意味**：{info['意味']}\n"
 
-        return res        
-
+        return res
 
     # --------------------------------------------------------
     # 純アルミ情報
@@ -253,9 +252,7 @@ class AluminumAlloyRAG:
             resp += "\n"
 
         if self.mechanical_table is not None:
-            df1000 = self.mechanical_table[
-                self.mechanical_table["系列"] == 1000
-            ]
+            df1000 = self.mechanical_table[self.mechanical_table["系列"] == 1000]
             if not df1000.empty:
                 resp += "### 代表的な純アルミ合金\n"
                 for _, row in df1000.iterrows():
@@ -446,44 +443,46 @@ class AluminumAlloyRAG:
 
         return list(keywords)
 
-
     # --------------------------------------------------------
     # クエリ振り分け（確定・安全版）
     # --------------------------------------------------------
     def process_query(self, q: str) -> str:
         text = q.lower()
         expanded_keywords = self.normalize_query(q)
-    
+        q_u = q.upper()
+
         # --------------------------------------------------
-        # ① 🔥 熱処理単体（T6とは？ / O材とは？）
+        # ① 🔥 熱処理単体（T6とは？ / T6処理について教えて / O材とは？）
+        #    → 「A6061-T6 の詳細」にはマッチしないよう fullmatch で判定
         # --------------------------------------------------
-        m = re.fullmatch(r"\s*(T\d+|O|H\d+)\s*(とは|について|処理)?", q.upper())
+        m = re.fullmatch(
+            r"\s*(T\d+|O|O材|H\d+)\s*(処理)?\s*(とは|について|について教えて)?\s*[？?]?\s*",
+            q_u,
+        )
         if m:
-            return self.get_heat_treatment_info(m.group(1))
-    
+            symbol = m.group(1).replace("材", "")
+            return self.get_heat_treatment_info(symbol)
+
         # --------------------------------------------------
         # ② 🧱 合金記号（A6061-T6 など）※ A + 4桁 必須
         # --------------------------------------------------
-        alloy_match = re.search(r"A\d{4}(?:-[A-Z0-9]+)?", q.upper())
+        alloy_match = re.search(r"A\d{4}(?:-[A-Z0-9]+)?", q_u)
         if alloy_match:
             return self.get_alloy_detailed_info(alloy_match.group(0))
-    
+
         # --------------------------------------------------
         # ③ 🔥 熱処理の比較（T6 と T651）
         # --------------------------------------------------
-        temps = re.findall(r"\b(T\d+|O|H\d+)\b", q.upper())
+        temps = re.findall(r"\b(T\d+|O|H\d+)\b", q_u)
         if len(temps) >= 2:
             return self.compare_tempers(temps[0], temps[1])
-    
-        # （この下に既存の系列検索・強度検索などが続く）
 
-    
         # --------------------------------------------------
         # ④ 純アルミ
         # --------------------------------------------------
         if "純アルミ" in text or "1000系" in text:
             return self.get_pure_aluminum_info()
-    
+
         # --------------------------------------------------
         # ⑤ 引張強さ
         # --------------------------------------------------
@@ -491,13 +490,13 @@ class AluminumAlloyRAG:
             nums = re.findall(r"\d+", text)
             val = int(nums[0]) if nums else 400
             return self.get_alloy_by_strength(val)
-    
+
         # --------------------------------------------------
         # ⑥ 系列・特性検索
         # --------------------------------------------------
         if any(k in expanded_keywords for k in ["耐食", "溶接", "軽量", "高強度", "航空", "8000"]):
             return self.search_by_properties(expanded_keywords)
-    
+
         # --------------------------------------------------
         # デフォルト
         # --------------------------------------------------
@@ -626,7 +625,7 @@ if __name__ == "__main__":
     
     
     
-    
+
 
 
 
